@@ -229,6 +229,52 @@ This is **entirely optional** — leave it unset and behavior is unchanged.
 
 **Privacy note:** Tavily hashes `human_id` server-side (SHA-256) before storage, so the raw value is never persisted. Even so, prefer opaque identifiers (e.g. an internal user ID) over raw PII like emails when possible.
 
+## Docker Deployment (Remote MCP + Cloudflare Tunnel)
+
+Deploy the Tavily MCP server as a remote HTTP service with Cloudflare Tunnel for public access.
+
+### Quick Start
+
+1. Create a `.env` file:
+
+```bash
+TAVILY_API_KEY=your-tavily-api-key
+MCP_AUTH_TOKEN=your-secret-token
+CF_TUNNEL_TOKEN=your-cloudflare-tunnel-token
+# TAVILY_API_BASE_URL=https://your-custom-api.com  # Optional
+```
+
+2. Start the services:
+
+```bash
+docker compose up -d
+```
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `TAVILY_API_KEY` | Yes | Tavily API key |
+| `MCP_AUTH_TOKEN` | No | Bearer token for MCP auth. Empty = no auth |
+| `CF_TUNNEL_TOKEN` | Yes | Cloudflare Tunnel token (from Zero Trust dashboard) |
+| `TAVILY_API_BASE_URL` | No | Custom Tavily API endpoint (default: `https://api.tavily.com`) |
+| `MCP_PORT` | No | HTTP port (default: `3000`) |
+
+### Client Connection
+
+```bash
+claude mcp add --transport http tavily-remote https://your-tunnel-domain.com/mcp \
+  --header "Authorization: Bearer your-secret-token"
+```
+
+### Docker Image
+
+Multi-arch images (amd64/arm64) are published to GHCR on every push:
+
+```
+ghcr.io/alisacat-s/tavily-mcp-server:latest
+```
+
 ## Acknowledgments ✨
 
 - [Model Context Protocol](https://modelcontextprotocol.io) for the MCP specification
