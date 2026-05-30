@@ -1,196 +1,150 @@
 # Tavily MCP Server
+
 ![GitHub Repo stars](https://img.shields.io/github/stars/tavily-ai/tavily-mcp?style=social)
 ![npm](https://img.shields.io/npm/dt/tavily-mcp)
 ![smithery badge](https://smithery.ai/badge/@tavily-ai/tavily-mcp)
 
-The Tavily MCP server provides:
-- search, extract, map, crawl tools
-- Real-time web search capabilities through the tavily-search tool
-- Intelligent data extraction from web pages via the tavily-extract tool
-- Powerful web mapping tool that creates a structured map of website 
-- Web crawler that systematically explores websites 
+Tavily MCP 服务器提供以下工具：
+- `tavily_search` — 实时网页搜索
+- `tavily_extract` — 从网页提取内容
+- `tavily_map` — 网站结构映射
+- `tavily_crawl` — 网站爬取
+- `tavily_research` — 综合研究（多源信息汇总）
 
+## Docker 部署（远程 MCP + Cloudflare Tunnel）
 
-### 📚 Helpful Resources
-- [Tutorial](https://medium.com/@dustin_36183/building-a-knowledge-graph-assistant-combining-tavily-and-neo4j-mcp-servers-with-claude-db92de075df9) on combining Tavily MCP with Neo4j MCP server
-- [Tutorial](https://medium.com/@dustin_36183/connect-your-coding-assistant-to-the-web-integrating-tavily-mcp-with-cline-in-vs-code-5f923a4983d1) on integrating Tavily MCP with Cline in VS Code
+通过 Docker Compose 一键部署远程 HTTP MCP 服务器，配合 Cloudflare Tunnel 暴露到公网。
 
-## Remote MCP Server
+### 快速开始
 
-Connect directly to Tavily's remote MCP server instead of running it locally. This provides a seamless experience without requiring local installation or configuration.
-
-Simply use the remote MCP server URL with your Tavily API key:
-
-``` 
-https://mcp.tavily.com/mcp/?tavilyApiKey=<your-api-key> 
-```
- Get your Tavily API key from [tavily.com](https://www.tavily.com/).
-
-Alternatively, you can pass your API key through an Authorization header if the MCP client supports this:
-
-```
-Authorization: Bearer <your-api-key>
-```
-**Note:** When using the remote MCP, you can specify default parameters for all requests by including a `DEFAULT_PARAMETERS` header containing a JSON object with your desired defaults. Example:
-
-
-```json
-{"include_images":true, "search_depth": "basic", "max_results": 10}
-```
-
-## Connect to Claude Code
-
-[Claude Code](https://docs.anthropic.com/en/docs/claude-code) is Anthropic's official CLI tool for Claude. You can add the Tavily MCP server using the `claude mcp add` command. There are two ways to authenticate:
-
-#### Option 1: API Key in URL
-
-Pass your API key directly in the URL. Replace `<your-api-key>` with your actual [Tavily API key](https://www.tavily.com/):
+1. 创建 `.env` 文件：
 
 ```bash
-claude mcp add --transport http tavily https://mcp.tavily.com/mcp/?tavilyApiKey=<your-api-key>
+TAVILY_API_KEY=your-tavily-api-key
+MCP_AUTH_TOKEN=your-secret-token
+CF_TUNNEL_TOKEN=your-cloudflare-tunnel-token
+# TAVILY_API_BASE_URL=https://your-custom-api.com  # 可选，自定义 API 地址
 ```
 
-#### Option 2: OAuth Authentication Flow
-
-Add the server without an API key in the URL:
+2. 启动服务：
 
 ```bash
-claude mcp add --transport http tavily https://mcp.tavily.com/mcp
+docker compose up -d
 ```
 
-After adding, you'll need to complete the authentication flow:
-1. Run `claude` to start Claude Code
-2. Type `/mcp` to open the MCP server management
-3. Select the Tavily server and complete the authentication process
+### 环境变量
 
-**Tip:** Add `--scope user` to either command to make the Tavily MCP server available globally across all your projects:
+| 变量 | 必填 | 说明 |
+|------|------|------|
+| `TAVILY_API_KEY` | 是 | Tavily API 密钥 |
+| `MCP_AUTH_TOKEN` | 否 | MCP 接口的 Bearer Token。为空则不启用认证 |
+| `CF_TUNNEL_TOKEN` | 是 | Cloudflare Tunnel Token（在 Zero Trust 面板创建隧道后获取） |
+| `TAVILY_API_BASE_URL` | 否 | 自定义 Tavily API 地址（默认 `https://api.tavily.com`） |
+| `MCP_PORT` | 否 | HTTP 监听端口（默认 `3000`） |
+
+### Docker 镜像
+
+每次推送自动构建多架构镜像（amd64/arm64）并发布到 GHCR：
+
+```
+ghcr.io/alisacat-s/tavily-mcp-server:latest
+```
+
+## 部署后接入指南
+
+部署完成后，各客户端可通过以下方式接入你的远程 MCP 服务器。
+
+### Claude Code
 
 ```bash
-claude mcp add --transport http --scope user tavily https://mcp.tavily.com/mcp/?tavilyApiKey=<your-api-key>
+# 全局可用（所有项目）
+claude mcp add --transport http --scope user tavily-remote https://your-domain.com/mcp \
+  --header "Authorization: Bearer your-secret-token"
+
+# 仅当前项目可用
+claude mcp add --transport http tavily-remote https://your-domain.com/mcp \
+  --header "Authorization: Bearer your-secret-token"
 ```
 
-Once configured, you'll have access to the Tavily search, extract, map, and crawl tools.
+`--scope user` 表示用户级别配置，添加后在任何项目中都能使用该 MCP 服务器。不加则仅在当前项目生效。
 
-## Connect to Cursor
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.svg)](https://cursor.com/en/install-mcp?name=tavily-remote-mcp&config=eyJjb21tYW5kIjoibnB4IC15IG1jcC1yZW1vdGUgaHR0cHM6Ly9tY3AudGF2aWx5LmNvbS9tY3AvP3RhdmlseUFwaUtleT08eW91ci1hcGkta2V5PiIsImVudiI6e319)
+### Cursor
 
-Click the ⬆️ Add to Cursor ⬆️ button, this will do most of the work for you but you will still need to edit the configuration to add your API-KEY. You can get a Tavily API key [here](https://www.tavily.com/).
-
-
-once you click the button you should be redirect to Cursor ...
-
-### Step 1
-Click the install button
-
-![](assets/cursor-step1.png)
-
-
-### Step 2
-You should see the MCP is now installed, if the blue slide is not already turned on, manually turn it on. You also need to edit the configuration to include your own Tavily API key.
-![](assets/cursor-step2.png)
-
-### Step 3
-You will then be redirected to your `mcp.json` file where you have to add `your-api-key`.
+在 Cursor 设置中编辑 MCP 配置（`.cursor/mcp.json`）：
 
 ```json
 {
   "mcpServers": {
-    "tavily-remote-mcp": {
-      "command": "npx -y mcp-remote https://mcp.tavily.com/mcp/?tavilyApiKey=<your-api-key>",
-      "env": {}
+    "tavily-remote": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://your-domain.com/mcp"],
+      "env": {
+        "MCP_HEADERS": "{\"Authorization\": \"Bearer your-secret-token\"}"
+      }
     }
   }
 }
 ```
 
-### Remote MCP Server OAuth Flow
+### Windsurf / Cline
 
-The Tavily Remote MCP server supports secure OAuth authentication, allowing you to connect and authorize seamlessly with compatible clients.
-
-#### How to Set Up OAuth Authentication
-
-**A. Using MCP Inspector:**
-
-* Open the MCP Inspector and click "Open Auth Settings".
-* Select the OAuth flow and complete these steps:
-   1. Metadata discovery
-   2. Client registration
-   3. Preparing authorization
-   4. Request authorization and obtain the authorization code
-   5. Token request
-   6. Authentication complete
-
-Once finished, you will receive an access token that lets you securely make authenticated requests to the Tavily Remote MCP server.
-
-**B. Using other MCP Clients (Example: Cursor):**
-
-You can configure your MCP client to use OAuth without including your Tavily API key in the URL. For example, in your `mcp.json`:
+在对应的 MCP 配置文件中添加：
 
 ```json
 {
   "mcpServers": {
-    "tavily-remote-mcp": {
-      "command": "npx mcp-remote https://mcp.tavily.com/mcp",
-      "env": {}
+    "tavily-remote": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://your-domain.com/mcp"],
+      "env": {
+        "MCP_HEADERS": "{\"Authorization\": \"Bearer your-secret-token\"}"
+      }
     }
   }
 }
 ```
 
-If you need to clear stored OAuth credentials and reauthenticate, run:
+### 无认证模式
+
+如果 `MCP_AUTH_TOKEN` 为空或未设置，服务器不要求任何认证，客户端连接时无需传递 `Authorization` header：
 
 ```bash
-rm -rf ~/.mcp-auth
+claude mcp add --transport http --scope user tavily-remote https://your-domain.com/mcp
 ```
 
-> **Note:**
-> - OAuth authentication is optional. You can still use API key authentication at any time by including your Tavily API key in the URL query parameter (`?tavilyApiKey=...`) or by setting it in the `Authorization` header, as described above.
+## 本地运行（Stdio 模式）
 
-#### Selecting Which API Key Is Used for OAuth
-
-After successful OAuth authentication, you can control which API key is used by naming it `mcp_auth_default`:
-
-- If you set a key named `mcp_auth_default` in your **personal account**, that key will be used for the auth flow.
-- If you are part of a **team** that has a key named `mcp_auth_default`, that key will be used for the auth flow.
-- If you have **both** a personal key and a team key named `mcp_auth_default`, the **personal key will be prioritized**.
-- If no `mcp_auth_default` key is set, the `default` key in your personal account will be used. If no `default` key is set, the first available key will be used.
-
-## Local MCP 
-
-### Prerequisites 🔧
-
-Before you begin, ensure you have:
+### 前置条件
 
 - [Tavily API key](https://app.tavily.com/home)
-  - If you don't have a Tavily API key, you can sign up for a free account [here](https://app.tavily.com/home)
-- [Claude Desktop](https://claude.ai/download) or [Cursor](https://cursor.sh)
-- [Node.js](https://nodejs.org/) (v20 or higher)
-  - You can verify your Node.js installation by running:
-    - `node --version`
-- [Git](https://git-scm.com/downloads) installed (only needed if using Git installation method)
-  - On macOS: `brew install git`
-  - On Linux: 
-    - Debian/Ubuntu: `sudo apt install git`
-    - RedHat/CentOS: `sudo yum install git`
-  - On Windows: Download [Git for Windows](https://git-scm.com/download/win)
+- [Node.js](https://nodejs.org/) v20+
 
-### Running with NPX 
+### 使用 NPX
 
 ```bash
-npx -y tavily-mcp@latest 
+npx -y tavily-mcp@latest
 ```
 
-## Default Parameters Configuration ⚙️
+### 客户端配置示例
 
-You can set default parameter values for the `tavily-search` tool using the `DEFAULT_PARAMETERS` environment variable. This allows you to configure default search behavior without specifying these parameters in every request.
-
-### Example Configuration
-
-```bash
-export DEFAULT_PARAMETERS='{"include_images": true}'
+```json
+{
+  "mcpServers": {
+    "tavily-mcp": {
+      "command": "npx",
+      "args": ["-y", "tavily-mcp@latest"],
+      "env": {
+        "TAVILY_API_KEY": "your-api-key-here"
+      }
+    }
+  }
+}
 ```
 
-### Example usage from Client
+## 默认参数配置
+
+通过 `DEFAULT_PARAMETERS` 环境变量设置搜索工具的默认参数：
+
 ```json
 {
   "mcpServers": {
@@ -206,76 +160,22 @@ export DEFAULT_PARAMETERS='{"include_images": true}'
 }
 ```
 
-## Identifying the End User (Optional)
+## 用户标识（可选）
 
-You can optionally identify the end user on whose behalf requests are being made by setting the `TAVILY_HUMAN_ID` environment variable. When set, Tavily MCP forwards it as the `X-Human-Id` header on every API call, enabling per-user analytics.
-
-This is **entirely optional** — leave it unset and behavior is unchanged.
+设置 `TAVILY_HUMAN_ID` 环境变量可标识终端用户，Tavily 会在服务端对该值做 SHA-256 哈希后存储，用于按用户统计分析。
 
 ```json
 {
-  "mcpServers": {
-    "tavily-mcp": {
-      "command": "npx",
-      "args": ["-y", "tavily-mcp@latest"],
-      "env": {
-        "TAVILY_API_KEY": "your-api-key-here",
-        "TAVILY_HUMAN_ID": "your-user-id"
-      }
-    }
+  "env": {
+    "TAVILY_API_KEY": "your-api-key-here",
+    "TAVILY_HUMAN_ID": "your-user-id"
   }
 }
 ```
 
-**Privacy note:** Tavily hashes `human_id` server-side (SHA-256) before storage, so the raw value is never persisted. Even so, prefer opaque identifiers (e.g. an internal user ID) over raw PII like emails when possible.
+## 致谢
 
-## Docker Deployment (Remote MCP + Cloudflare Tunnel)
+- [Model Context Protocol](https://modelcontextprotocol.io)
+- [Anthropic](https://anthropic.com)
+- [Tavily](https://tavily.com)
 
-Deploy the Tavily MCP server as a remote HTTP service with Cloudflare Tunnel for public access.
-
-### Quick Start
-
-1. Create a `.env` file:
-
-```bash
-TAVILY_API_KEY=your-tavily-api-key
-MCP_AUTH_TOKEN=your-secret-token
-CF_TUNNEL_TOKEN=your-cloudflare-tunnel-token
-# TAVILY_API_BASE_URL=https://your-custom-api.com  # Optional
-```
-
-2. Start the services:
-
-```bash
-docker compose up -d
-```
-
-### Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `TAVILY_API_KEY` | Yes | Tavily API key |
-| `MCP_AUTH_TOKEN` | No | Bearer token for MCP auth. Empty = no auth |
-| `CF_TUNNEL_TOKEN` | Yes | Cloudflare Tunnel token (from Zero Trust dashboard) |
-| `TAVILY_API_BASE_URL` | No | Custom Tavily API endpoint (default: `https://api.tavily.com`) |
-| `MCP_PORT` | No | HTTP port (default: `3000`) |
-
-### Client Connection
-
-```bash
-claude mcp add --transport http tavily-remote https://your-tunnel-domain.com/mcp \
-  --header "Authorization: Bearer your-secret-token"
-```
-
-### Docker Image
-
-Multi-arch images (amd64/arm64) are published to GHCR on every push:
-
-```
-ghcr.io/alisacat-s/tavily-mcp-server:latest
-```
-
-## Acknowledgments ✨
-
-- [Model Context Protocol](https://modelcontextprotocol.io) for the MCP specification
-- [Anthropic](https://anthropic.com) for Claude Desktop
